@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CryptoPair, TechnicalAnalysis, AnalysisResult, KlineData, NewsItem, Sentiment, WhaleAlert } from '../types';
-import { getCryptoAnalysis } from '../services/geminiService';
+import { getCryptoAnalysis, getAIWhaleAlerts } from '../services/geminiService';
 import { getMarketAnalysis } from '../services/binanceService';
-import { fetchWhaleAlerts } from '../services/whaleAlertService';
 import ChartPanel from './ChartPanel';
 import SummaryPanel from './SummaryPanel';
 import RecommendationPanel from './RecommendationPanel';
@@ -88,13 +87,13 @@ const Dashboard: React.FC<DashboardProps> = ({ pair }) => {
     setLoadingWhales(true);
     setErrorWhales(null);
     try {
-        const alerts = await fetchWhaleAlerts();
+        const alerts = await getAIWhaleAlerts();
         setWhaleAlerts(alerts);
     } catch(e) {
         if (e instanceof Error) {
-            setErrorWhales(e.message);
+            setErrorWhales(e.message || "Erro ao buscar dados de baleias com a IA.");
         } else {
-            setErrorWhales("Erro ao buscar dados de baleias.");
+            setErrorWhales("Erro desconhecido ao buscar dados de baleias com a IA.");
         }
     } finally {
         setLoadingWhales(false);
