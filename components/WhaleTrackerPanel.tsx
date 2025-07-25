@@ -59,12 +59,12 @@ const WhaleTrackerPanel: React.FC<{ alerts: WhaleAlert[], loading: boolean, erro
     <div className="bg-gray-800 p-6 rounded-lg">
         <div className="flex items-center gap-3 mb-4">
              <WhaleIcon className="h-8 w-8 text-blue-500" />
-             <h3 className="text-xl font-bold text-white">Whale Tracker: Últimas Movimentações</h3>
+             <h3 className="text-xl font-bold text-white">Radar de Criptos Novas: Grandes Movimentações</h3>
         </div>
         
         {loading && (
              <div className="flex justify-center items-center h-48">
-                <p className="text-gray-400 animate-pulse">Rastreando baleias...</p>
+                <p className="text-gray-400 animate-pulse">Buscando transações em novas criptos...</p>
              </div>
         )}
 
@@ -84,7 +84,7 @@ const WhaleTrackerPanel: React.FC<{ alerts: WhaleAlert[], loading: boolean, erro
         
         {!loading && !error && alerts.length === 0 && (
              <div className="flex justify-center items-center h-48">
-                <p className="text-gray-500">Nenhuma movimentação de baleia recente detectada.</p>
+                <p className="text-gray-500">Nenhuma grande transação em criptos novas foi detectada.</p>
              </div>
         )}
     </div>
