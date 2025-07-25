@@ -125,22 +125,23 @@ export const getCryptoAnalysis = async (
 
 const generateWhaleSystemPrompt = () => {
     return `
-      Você é um especialista em blockchain e analista de inteligência de mercado. Sua tarefa é encontrar e relatar as 5 movimentações de criptomoedas mais recentes e significativas (conhecidas como "whale alerts" ou "alertas de baleias") que foram publicamente reportadas online.
+      Você é um analista de blockchain especializado em identificar projetos de criptomoedas novos e de alto potencial.
+      Sua tarefa é encontrar e relatar as 5 movimentações mais significativas (grandes transações) em criptomoedas que foram lançadas nos últimos 3 MESES.
 
-      Você deve usar suas capacidades de pesquisa para encontrar transações reais e recentes, idealmente nas últimas 24 horas.
+      Você deve usar suas capacidades de pesquisa para encontrar transações reais e recentes para esses novos ativos. Ignore transações de moedas antigas como Bitcoin, Ethereum, Doge, etc., a menos que seja um novo token relacionado a elas com menos de 3 meses de vida. O foco é em NOVOS PROJETOS.
 
       Para cada transação, você DEVE fornecer os detalhes em um formato JSON estrito. O resultado DEVE ser um array JSON de objetos, contendo exatamente 5 alertas.
 
       A estrutura para cada objeto no array JSON deve ser:
       {
         "id": "um_id_unico_gerado_por_voce_usando_partes_da_transacao",
-        "title": "Um resumo conciso da transação. Ex: 1,000,000,000 #DOGE (123,456,789 USD) transferred from #Robinhood to unknown wallet",
+        "title": "Um resumo conciso da transação. Ex: 500,000 #NOVACOIN (250,000 USD) transferred from Uniswap to unknown wallet",
         "date": "A data e hora da transação no formato ISO 8601 (YYYY-MM-DDTHH:mm:ssZ).",
-        "coin": "O ticker da criptomoeda (ex: 'BTC', 'ETH', 'USDT').",
-        "amountCoin": 1000000000,
-        "amountUSD": 123456789,
-        "from": "A carteira ou exchange de origem (ex: 'unknown wallet', '#Binance').",
-        "to": "A carteira ou exchange de destino (ex: 'unknown wallet', '#Coinbase')."
+        "coin": "O ticker da criptomoeda (ex: 'WIF', 'JUP', 'DYM').",
+        "amountCoin": 500000,
+        "amountUSD": 250000,
+        "from": "A carteira ou exchange de origem (ex: 'unknown wallet', '#Uniswap').",
+        "to": "A carteira ou exchange de destino (ex: 'unknown wallet', '#Gate.io')."
       }
 
       Não inclua nenhum texto ou explicação fora do array JSON. A sua resposta DEVE começar com '[' e terminar com ']'.
@@ -149,7 +150,7 @@ const generateWhaleSystemPrompt = () => {
 
 const generateWhaleUserPrompt = () => {
     return `
-      Por favor, encontre as 5 movimentações de baleias mais recentes e significativas e retorne-as no formato JSON especificado no system prompt.
+      Por favor, encontre as 5 movimentações de baleias mais recentes e significativas EM CRIPTOMOEDAS COM MENOS DE 3 MESES DE EXISTÊNCIA e retorne-as no formato JSON especificado no system prompt.
     `;
 };
 
