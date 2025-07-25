@@ -1,7 +1,7 @@
 import { CryptoPair, TechnicalAnalysis, FullAnalysis, WhaleAlert } from '../types';
 
 // Using a free, public key for OpenRouter for demonstration purposes.
-const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_KEY = "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";
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // OpenRouter recommends setting these headers for proper rate-limiting and identification.
 const YOUR_SITE_URL = "https://crypto-ia-analyst.app"; 
@@ -77,7 +77,7 @@ export const getCryptoAnalysis = async (
                 'X-Title': YOUR_SITE_NAME,
             },
             body: JSON.stringify({
-                model: 'google/gemini-flash-1.5',
+                model: 'qwen/qwen-2.5-72b-instruct:free',
                 messages: [
                     { role: 'system', content: generateSystemPrompt() },
                     { role: 'user', content: generateUserPrompt(pair, technicalData) }
