@@ -1,45 +1,49 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { CryptoPair, TechnicalAnalysis, FullAnalysis } from '../types';
+import { CryptoPair, TechnicalAnalysis, FullAnalysis, WhaleAlert } from '../types';
 
-const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-        analysis: {
-            type: Type.OBJECT,
-            properties: {
-                suggestion: { type: Type.STRING, description: "Pode ser 'COMPRA', 'VENDA', ou 'NEUTRO'." },
-                justification: { type: Type.STRING, description: "Explicação detalhada combinando análise técnica e de sentimento." },
-                entryPoint: { type: Type.NUMBER },
-                stopLoss: { type: Type.NUMBER },
-                takeProfit: { type: Type.NUMBER },
-                risk: { type: Type.STRING, description: "Pode ser 'BAIXO', 'MÉDIO', ou 'ALTO'." }
-            },
-        },
-        news: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    headline: { type: Type.STRING, description: "Manchete da notícia." },
-                    source: { type: Type.STRING, description: "Fonte, ex: 'Reuters'." },
-                    sentiment: { type: Type.STRING, description: "Pode ser 'Positivo', 'Negativo', ou 'Neutro'." }
-                },
-            }
-        },
-        overallSentiment: { type: Type.STRING, description: "Sentimento geral ('Positivo', 'Negativo', 'Neutro') baseado nas notícias." }
-    }
-};
+// Using a free, public key for OpenRouter for demonstration purposes.
+const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// OpenRouter recommends setting these headers for proper rate-limiting and identification.
+const YOUR_SITE_URL = "https://crypto-ia-analyst.app"; 
+const YOUR_SITE_NAME = "Crypto IA Analyst";
 
 
-const generatePrompt = (pair: CryptoPair, tech: TechnicalAnalysis) => {
+const generateSystemPrompt = () => {
     return `
       Você é um analista de criptomoedas sênior e um agregador de notícias financeiras para o app 'Crypto IA Analyst'.
-      Sua tarefa é realizar uma análise completa e integrada para o par ${pair}.
+      Sua tarefa é realizar uma análise completa e integrada para um par de criptomoedas.
+      O resultado DEVE ser um objeto JSON VÁLIDO.
 
       O processo tem três etapas:
-      1.  **Busca e Análise de Notícias:** Encontre 3-4 manchetes de notícias REAIS e recentes (últimos dias) para ${pair}. Para cada uma, determine a fonte e o sentimento ('Positivo', 'Negativo', 'Neutro'). Com base nelas, defina um 'overallSentiment'.
-      2.  **Análise Técnica:** Analise os dados técnicos fornecidos abaixo.
-      3.  **Conclusão e Recomendação:** Combine o sentimento das notícias com a análise técnica para gerar uma recomendação de negociação final ('analysis'). A justificativa deve explicar COMO as notícias e os indicadores técnicos levaram à sua decisão. O resultado deve ser retornado no formato JSON definido no schema.
+      1.  **Busca e Análise de Notícias:** Encontre 3-4 manchetes de notícias REAIS e recentes (últimos dias) para o par solicitado. Para cada uma, determine a fonte e o sentimento ('Positivo', 'Negativo', 'Neutro'). Com base nelas, defina um 'overallSentiment'.
+      2.  **Análise Técnica:** Analise os dados técnicos fornecidos pelo usuário.
+      3.  **Conclusão e Recomendação:** Combine o sentimento das notícias com a análise técnica para gerar uma recomendação de negociação final ('analysis'). A justificativa deve explicar COMO as notícias e os indicadores técnicos levaram à sua decisão.
+
+      O JSON de saída deve ter a seguinte estrutura:
+      {
+        "analysis": {
+          "suggestion": "'COMPRA', 'VENDA', ou 'NEUTRO'",
+          "justification": "Explicação detalhada da recomendação.",
+          "entryPoint": 123.45,
+          "stopLoss": 120.00,
+          "takeProfit": 130.00,
+          "risk": "'BAIXO', 'MÉDIO', ou 'ALTO'"
+        },
+        "news": [
+          {
+            "headline": "Manchete da notícia.",
+            "source": "Fonte da notícia",
+            "sentiment": "'Positivo', 'Negativo', ou 'Neutro'"
+          }
+        ],
+        "overallSentiment": "'Positivo', 'Negativo', ou 'Neutro'"
+      }
+    `;
+};
+
+const generateUserPrompt = (pair: CryptoPair, tech: TechnicalAnalysis) => {
+    return `
+      Por favor, realize a análise completa para o par ${pair}.
 
       Dados Técnicos Atuais para ${pair}:
       - Preço Atual: ${tech.price.toFixed(4)}
@@ -53,55 +57,169 @@ const generatePrompt = (pair: CryptoPair, tech: TechnicalAnalysis) => {
       - Se o RSI está baixo (<30) e as notícias são majoritariamente 'Positivas' (ex: aprovação de um ETF), isso fortalece muito uma recomendação de 'COMPRA'.
       - Se o preço está acima da EMA(200) mas as notícias são 'Negativas' (ex: problemas regulatórios), a recomendação pode ser 'NEUTRO', aconselhando cautela.
 
-      Agora, gere sua análise completa no formato JSON solicitado.
+      Gere sua análise completa no formato JSON solicitado no prompt do sistema.
     `;
 };
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getCryptoAnalysis = async (
   pair: CryptoPair,
   technicalData: TechnicalAnalysis
 ): Promise<FullAnalysis> => {
-  const prompt = generatePrompt(pair, technicalData);
 
-  try {
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-        },
-    });
-
-    const content = response.text;
-
-    if (!content) {
-        throw new Error("A resposta da IA está vazia ou em formato inesperado.");
-    }
-    
     try {
-        const parsedJson: FullAnalysis = JSON.parse(content);
-        if (!parsedJson.analysis || !parsedJson.news || !parsedJson.overallSentiment) {
-            console.warn("Incomplete AI response", parsedJson);
-            throw new Error("O JSON retornado pela IA está incompleto ou malformado.");
-        }
-        return parsedJson;
-    } catch (parseError) {
-        console.error("Failed to parse JSON from AI response:", content, parseError);
-        throw new Error("Falha ao processar a resposta da IA. O formato do JSON é inválido.");
-    }
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': YOUR_SITE_URL, 
+                'X-Title': YOUR_SITE_NAME,
+            },
+            body: JSON.stringify({
+                model: 'google/gemini-flash-1.5',
+                messages: [
+                    { role: 'system', content: generateSystemPrompt() },
+                    { role: 'user', content: generateUserPrompt(pair, technicalData) }
+                ],
+                response_format: { "type": "json_object" }
+            })
+        });
 
-  } catch (error) {
-    console.error("Error fetching analysis from Gemini API:", error);
-    if (error instanceof Error) {
-        // Provide a more user-friendly message for common API key issues
-        if (error.message.includes('API key')) {
-            return Promise.reject(new Error("Falha na chamada à API Gemini: A chave de API é inválida ou está faltando."));
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("OpenRouter API Error:", errorData);
+            throw new Error(`Falha na chamada à API OpenRouter: ${errorData.error?.message || response.statusText}`);
         }
-        throw new Error(`Falha na chamada à API Gemini: ${error.message}`);
+        
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+
+        if (!content) {
+            throw new Error("A resposta da IA está vazia ou em formato inesperado.");
+        }
+        
+        try {
+            const parsedJson: FullAnalysis = JSON.parse(content);
+            if (!parsedJson.analysis || !parsedJson.news || !parsedJson.overallSentiment) {
+                console.warn("Incomplete AI response", parsedJson);
+                throw new Error("O JSON retornado pela IA está incompleto ou malformado.");
+            }
+            return parsedJson;
+        } catch (parseError) {
+            console.error("Failed to parse JSON from AI response:", content, parseError);
+            throw new Error("Falha ao processar a resposta da IA. O formato do JSON é inválido.");
+        }
+
+    } catch (error) {
+        console.error("Error fetching analysis from OpenRouter:", error);
+        if (error instanceof Error) {
+            if (error.message.includes('API key')) {
+                return Promise.reject(new Error("Falha na chamada à API: A chave de API do OpenRouter é inválida ou está faltando."));
+            }
+            throw new Error(`Falha na chamada à API: ${error.message}`);
+        }
+        throw new Error("Falha ao obter análise da IA. Verifique a conexão ou a API OpenRouter.");
     }
-    throw new Error("Falha ao obter análise da IA. Verifique a conexão ou a API Gemini.");
-  }
+};
+
+const generateWhaleSystemPrompt = () => {
+    return `
+      Você é um especialista em blockchain e analista de inteligência de mercado. Sua tarefa é encontrar e relatar as 5 movimentações de criptomoedas mais recentes e significativas (conhecidas como "whale alerts" ou "alertas de baleias") que foram publicamente reportadas online.
+
+      Você deve usar suas capacidades de pesquisa para encontrar transações reais e recentes, idealmente nas últimas 24 horas.
+
+      Para cada transação, você DEVE fornecer os detalhes em um formato JSON estrito. O resultado DEVE ser um array JSON de objetos, contendo exatamente 5 alertas.
+
+      A estrutura para cada objeto no array JSON deve ser:
+      {
+        "id": "um_id_unico_gerado_por_voce_usando_partes_da_transacao",
+        "title": "Um resumo conciso da transação. Ex: 1,000,000,000 #DOGE (123,456,789 USD) transferred from #Robinhood to unknown wallet",
+        "date": "A data e hora da transação no formato ISO 8601 (YYYY-MM-DDTHH:mm:ssZ).",
+        "coin": "O ticker da criptomoeda (ex: 'BTC', 'ETH', 'USDT').",
+        "amountCoin": 1000000000,
+        "amountUSD": 123456789,
+        "from": "A carteira ou exchange de origem (ex: 'unknown wallet', '#Binance').",
+        "to": "A carteira ou exchange de destino (ex: 'unknown wallet', '#Coinbase')."
+      }
+
+      Não inclua nenhum texto ou explicação fora do array JSON. A sua resposta DEVE começar com '[' e terminar com ']'.
+    `;
+};
+
+const generateWhaleUserPrompt = () => {
+    return `
+      Por favor, encontre as 5 movimentações de baleias mais recentes e significativas e retorne-as no formato JSON especificado no system prompt.
+    `;
+};
+
+export const getAIWhaleAlerts = async (): Promise<WhaleAlert[]> => {
+    try {
+        const response = await fetch(OPENROUTER_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': YOUR_SITE_URL,
+                'X-Title': YOUR_SITE_NAME,
+            },
+            body: JSON.stringify({
+                model: 'google/gemini-flash-1.5',
+                messages: [
+                    { role: 'system', content: generateWhaleSystemPrompt() },
+                    { role: 'user', content: generateWhaleUserPrompt() }
+                ],
+                // Although we ask for an array, telling the model to format as a JSON object
+                // can lead to more stable, well-formed responses. We will parse it flexibly.
+                response_format: { "type": "json_object" }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("OpenRouter API Error (Whale Alerts):", errorData);
+            throw new Error(`Falha na busca de alertas de baleias via IA: ${errorData.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+
+        if (!content) {
+            throw new Error("A resposta da IA para alertas de baleias está vazia.");
+        }
+
+        try {
+            let parsedJson: WhaleAlert[];
+            const trimmedContent = content.trim();
+
+            if (trimmedContent.startsWith('[') && trimmedContent.endsWith(']')) {
+                 parsedJson = JSON.parse(trimmedContent);
+            } else {
+                // If the AI wrapped the array in an object, e.g. {"alerts": [...]}, extract it.
+                const potentialObject = JSON.parse(trimmedContent);
+                const key = Object.keys(potentialObject).find(k => Array.isArray(potentialObject[k]));
+                if(key) {
+                    parsedJson = potentialObject[key];
+                } else {
+                    throw new Error("O JSON retornado pela IA não contém um array de alertas.");
+                }
+            }
+            
+            if (!Array.isArray(parsedJson)) {
+                throw new Error("A resposta da IA não é um array de alertas válidos.");
+            }
+
+            return parsedJson.slice(0, 15); // Return up to 15, even though we ask for 5.
+        } catch (parseError) {
+            console.error("Failed to parse JSON from AI whale alert response:", content, parseError);
+            throw new Error("Falha ao processar a resposta da IA para alertas de baleias. O formato é inválido.");
+        }
+
+    } catch (error) {
+        console.error("Error fetching whale alerts from AI:", error);
+        if (error instanceof Error) {
+            throw new Error(`Falha ao obter alertas de baleias: ${error.message}`);
+        }
+        throw new Error("Ocorreu um erro desconhecido ao obter alertas de baleias da IA.");
+    }
 };
