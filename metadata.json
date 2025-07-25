@@ -1,0 +1,6 @@
+
+{
+  "name": "Crypto IA Analyst",
+  "description": "An intelligent dashboard that analyzes cryptocurrency pairs using real-time Binance data and AI to provide trading recommendations.",
+  "requestFramePermissions": []
+}
